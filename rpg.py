@@ -1,121 +1,147 @@
 import random
 
-#Possible moves
-moves = ["attack", "defend", "heal", "fireball"]
-charges = {"heal": 3, "fireball": 3}
-
-#Starting stats
-player_Max_HP = 30
-player_HP = player_Max_HP 
-enemy_HP = 30
-player_Level = 1
-damage = 5
-enemy_Damage = int (player_HP / 5)
-heal = 3
-
-
-#Functions
-def levelUp():
-    global player_Max_HP , player_HP, player_Level, damage, heal
-    player_Level += 1
-    print (f"\nYou have leveled up! Your level is now {player_Level}")
-    print ("1. Increase attack")
-    print ("2. Increase Max HP")
-    print ("3. Increase healing")
-
-    while True:
-        choice = input ("What would you like to do? Choose 1, 2 or 3.\n").strip()
-        if choice == "1":
-            damage += 5
-            print ("You have increased your attack by 5.")
-            break
-        elif choice == "2":
-            player_Max_HP += 5
-            player_HP += 5  
-            print ("You have increased your max HP by 5.")
-            break
-        elif choice == "3":
-            heal += 2
-            print ("You have increased your healing by 2.")
-            break
+#Player class
+class Player:
+    def __init__ (self):
+        self.max_HP = 30
+        self.level = 1
+        self.damage = 5
+        self.heal = 3
+        self.current_HP = self.max_HP
+        self.charges = {"heal": 3, "fireball": 3}
+        
+    def attack (self, enemy):
+        print (f"You attack the enemy for {self.damage} damage")    
+        enemy.take_Damage(self.damage)
+        
+    def block (self, enemy_attack):
+        blocked_damage = enemy_attack // 2
+        print (f"You defend and you take {blocked_damage} damage")
+        self.current_HP -= blocked_damage
+        
+    def healing (self):
+        if self.charges["heal"] > 0:
+            scaling_heal = (self.current_HP // 10) + self.heal  
+            self.current_HP = min(self.current_HP + scaling_heal, self.max_HP)
+            print (f"You heal {scaling_heal} HP.")
+            self.charges["heal"] -= 1 
         else:
-            print ("Invalid choice. Try again.")
+            print ("You are out of healing charges.")
+            
+    def fireball (self, enemy):
+        if self.charges["fireball"] > 0:
+            fireball_damage = self.damage * 2
+            print (f"You cast a fireball for {fireball_damage} damage.")
+            enemy.take_Damage(fireball_damage)
+            self.charges["fireball"] -= 1
+        else:
+            print ("You are out of fireball charges.")
+        
+    def levelUp(self):
+        print (f"\nYou have leveled up! Your level is now {self.level}")
+        print ("1. Increase attack")
+        print ("2. Increase Max HP")
+        print ("3. Increase healing")
 
-#Game loop    
-while player_HP > 0:
-    print (f"\nYour level is {player_Level}.")
-    enemy_HP = player_Level * 5
+        while True:
+            choice = input ("What would you like to do? Choose 1, 2 or 3.\n").strip()
+            if choice == "1":
+                self.damage += 5
+                print ("You have increased your attack by 5.")
+                break
+            elif choice == "2":
+                self.max_HP += 5
+                self.current_HP += 5  
+                print ("You have increased your max HP by 5.")
+                break
+            elif choice == "3":
+                self.heal += 2
+                print ("You have increased your healing by 2.")
+                break
+            else:
+                print ("Invalid choice. Try again.")    
+        
+class Enemy:
+    def __init__ (self, level):
+        self.HP = 30
+        self.attack_Power = 5 * level
+        
+    def take_Damage (self, damage):
+        self.HP = max(0, self.HP - damage)   
+        
+    def enemy_attack (self, player):
+        print (f"The enemy attacks you for {self.attack_Power} damage.")
+        player.current_HP = max(0, player.current_HP - self.attack_Power)
     
-    #Battle Loop
-    while player_HP > 0 and enemy_HP > 0:
-        print (f"You have {player_HP} HP. The enemy has {enemy_HP} HP.")
-        player_Move = input("You can choose to Attack, Defend , Heal or Fireball\n").lower()
-        if player_Move not in moves:
-            print ("Invalid move. Try again.")
-            continue
-        #Enemy actions are random    
-        enemy_Move = random.choice(["attack", "defend", "counter magic"])
+    def enemy_block (self, player_Action):
+        if player_Action == "fireball":
+            Player.fireball()
+        else:
+            print (f"The enemy defends and takes no damage.")
         
-        #Player actions
+    def counter_magic (self, player_Action, player):
+        if player_Action == "heal":
+            self.HP += player.scaling_heal
+            print (f"The enemy counters magic and heals for {player.scaling_heal} HP.")
+        elif player_Action == "fireball":
+            print ("The enemy counters fireball and takes no damage.")
+            
+    def perform_Action (self, player):
+        action = random.choice(["attack", "defend", "counter magic"])
+        if action == "attack":
+            self.enemy_attack(player)
+        elif action == "defend":
+            self.enemy_block()
+        elif action == "counter magic":
+            self.counter_magic(self, player)
+
+class Game:
+    def __init__ (self):
+        self.playerA = Player()
+
+    def game_Loop (self):
+        while self.playerA.current_HP > 0:
+            enemy = Enemy(self.playerA.level)
+            print (f"You are level {self.playerA.level}")
+            
+            while enemy.HP > 0 and self.playerA.current_HP > 0:
+                self.display_Stats(enemy)
+                player_Action = input("You can choose to Attack, Defend, Heal or Fireball\n").lower()
+                if player_Action == "attack":
+                    self.playerA.attack(enemy)
+                elif player_Action == "defend":
+                    self.playerA.block(enemy)
+                elif player_Action == "heal":
+                    self.playerA.healing()
+                elif player_Action == "fireball":
+                    self.playerA.fireball(enemy)
+                else:
+                    print ("Invalid move. Try again.")
+                    
+                if enemy.HP > 0:    
+                    enemy.perform_Action(self.playerA)
+                else:
+                    self.playerA.levelUp()
+                    self.regain_Charges()
+            
+            if self.playerA.current_HP <= 0:
+                print ("YOU DIED.")
+                break
+
+    def display_Stats (self, enemy):
+        print (f"Your HP is: {self.playerA.current_HP}/{self.playerA.max_HP}, Enemy HP is: {enemy.HP}")
+        print (f"You have {self.playerA.charges['heal']} healing charges and {self.playerA.charges['fireball']} fireball charges.")
+    
+    def regain_Charges (self):
+        if random.random() < 0.5:
+            self.playerA.charges["heal"] += 1
+            print ("You have regained a healing charge.")
+        if random.random() < 0.3:
+            self.playerA.charges["fireball"] += 1
+            print ("You have regained a fireball charge.")
+        if random.random() < 0.05:
+            self.player_HP = self.player_max_HP
+            print ("You have regained full HP.")
         
-        if player_Move == "attack":
-            if enemy_Move == "defend":
-                print ("You attack but the enemy defends. You both take no damage.")
-            else:
-                enemy_HP -= damage
-                print (f"You attack and the enemy {enemy_Move}. The enemy takes {damage} damage.")
-                
-        elif player_Move == "defend":
-            print (f"You defend and the enemy {enemy_Move}. You both take no damage.")
-        
-        elif player_Move == "heal":
-            if charges["heal"] == 0:
-                print ("You are out of healing charges.")
-                continue
-            if enemy_Move == "attack":
-                player_HP = min(player_HP + heal, player_Max_HP)
-                print (f"You heal {heal} damage.")
-                charges["heal"] -= 1
-            elif enemy_Move == "counter magic":
-                enemy_HP += heal
-                print (f"You heal and the enemy counters magic. The enemy heals {heal} damage.")
-                charges["heal"] -= 1
-            else:
-                player_HP = min(player_HP + heal, player_Max_HP)
-                print (f"You heal and the enemy defends. You heal {heal} damage.")
-                charges["heal"] -= 1
-        
-        elif player_Move == "fireball":
-            if charges["fireball"] == 0:
-                print ("You are out of fireball charges.")
-                continue
-            if enemy_Move == "counter magic":
-                print ("You fireball but the enemy counters magic. The enemy takes no damage.")
-                charges["fireball"] -= 1
-            else:
-                enemy_HP -= damage*2
-                print (f"You fireball and {enemy_Move}. The enemy takes {damage} damage.")
-                charges["fireball"] -= 1
-        
-        #Enemy actions
-        
-        if enemy_Move == "attack" and player_Move != "defend":
-            player_HP -= enemy_Damage
-            print (f"The enemy attacks. You take {enemy_Damage} damage.")  
-        
-    if player_HP > 0:
-        print (f"\nFOE VANQUISHED.")
-        levelUp()
-        
-        if random.random() <= 0.5:
-            charges["heal"] += 1
-            print (f"You gain 1 healing charge from killing the foe.")
-        if random.random() <= 0.3:
-            charges["fireball"] += 1
-            print  (f"You gain 1 fireball charge from killing the foe.")
-        if random.random() <= 0.2:
-            player_HP = min(player_HP + 5, player_Max_HP)
-            print (f"You gain 5 HP from eating the desecrated corpse.")
-    else:
-        print (f"\nYOU HAVE DIED.")
-        break     
+game = Game()
+game.game_Loop()
